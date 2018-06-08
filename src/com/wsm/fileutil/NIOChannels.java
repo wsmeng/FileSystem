@@ -1,24 +1,26 @@
 package com.wsm.fileutil;
 
 import java.io.*;
-import java.nio.charset.*;
+import java.nio.channels.*;
+import java.nio.charset.Charset;
 import java.nio.file.*;
 import java.util.*;
 
-public class IOFile implements FileUtil {
+public class NIOChannels implements FileUtil {
 
 	@Override
 	public byte[] read(String path) throws Exception {
-		FileInputStream fis = new FileInputStream(new File(path));
+		InputStream is = Channels.newInputStream(
+				FileChannel.open(Paths.get(path), StandardOpenOption.READ));
 		List<Byte> result = new ArrayList<Byte>();
-		byte[] temp = new byte[1024];
 		int length = 0;
-		while((length = fis.read(temp)) > 0) {
+		byte[] temp = new byte[1024];
+		while((length = is.read(temp)) > 0) {
 			for(int index = 0; index < length; index++) {
 				result.add(temp[index]);
 			}
 		}
-		fis.close();
+		is.close();
 		if(result.size() != 0) {
 			byte[] data = new byte[result.size()];
 			int count = 0;
@@ -33,53 +35,43 @@ public class IOFile implements FileUtil {
 	@Override
 	public Path write(String path, byte[] data, OpenOption option)
 			throws Exception {
-		FileOutputStream fos;
-		if(option == StandardOpenOption.APPEND) {
-			fos = new FileOutputStream(new File(path), true);
-		} else {
-			fos = new FileOutputStream(new File(path), false);
-		}
-		fos.write(data);
-		fos.flush();
-		fos.close();
-		return Paths.get(path);
+		Path file = Paths.get(path);
+		OutputStream os = Channels.newOutputStream(
+				FileChannel.open(file, StandardOpenOption.APPEND));
+		os.write(data);
+		return file;
 	}
 
 	@Override
 	public boolean exist(String path) {
-		return new File(path).exists();
+		return Files.exists(Paths.get(path), LinkOption.NOFOLLOW_LINKS);
 	}
 
 	@Override
 	public InputStream newInputStream(String path, OpenOption option)
 			throws Exception {
-		throw new UnsupportedOperationException();
+		return Channels.newInputStream(FileChannel.open(Paths.get(path), option));
 	}
 
 	@Override
 	public OutputStream newOutputStream(String path, OpenOption option)
 			throws Exception {
-		throw new UnsupportedOperationException();
+		return Channels.newOutputStream(FileChannel.open(Paths.get(path), option));
 	}
 
 	@Override
 	public BufferedWriter newBufferedWriter(String path, Charset cs,
 			OpenOption option) throws Exception {
-		BufferedWriter bw;
-		if(option == StandardOpenOption.APPEND) {
-			bw = new BufferedWriter(new OutputStreamWriter(
-					new FileOutputStream(new File(path), true), cs));
-		} else {
-			bw = new BufferedWriter(new OutputStreamWriter(
-					new FileOutputStream(new File(path), false), cs));
-		}
-		return bw;
+		return new BufferedWriter(
+				new OutputStreamWriter(Channels.newOutputStream(
+						FileChannel.open(Paths.get(path), option)), cs));
 	}
 
 	@Override
 	public BufferedReader newBufferedReader(String path, Charset cs)
 			throws Exception {
-		return new BufferedReader(new InputStreamReader(new FileInputStream(path), cs));
+		return new BufferedReader(new InputStreamReader(
+				Channels.newInputStream(FileChannel.open(Paths.get(path))), cs));
 	}
 
 }
